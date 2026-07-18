@@ -1,166 +1,127 @@
--- إنشاء الواجهة (ScreenGui)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BossRadar_Final"
-ScreenGui.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
+-- [[ GUI KING - OBJECT SCANNER ]] --
 
--- الإطار الرئيسي (مربع، أسود، ناعم الحواف)
+local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local ScrollFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+local ToggleBtn = Instance.new("TextButton")
+
+-- إعدادات الـ ScreenGui
+ScreenGui.Name = "GuiKingScanner"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- زر التشغيل والإطفاء (أعلى اليمين)
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = ScreenGui
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleBtn.Position = UDim2.new(0.85, 0, 0.05, 0)
+ToggleBtn.Size = UDim2.new(0, 100, 0, 40)
+ToggleBtn.Text = "GUI KING: ON"
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.TextScaled = true
+
+-- الواجهة الرئيسية (سوداء)
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10) -- أسود
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -110)
-MainFrame.Size = UDim2.new(0, 220, 0, 250) -- شكل مربعي
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 350, 0, 400)
 MainFrame.Active = true
-MainFrame.Draggable = true -- تفعيل السحب للهاتف
+MainFrame.Draggable = true -- تفعيل السحب باللمس
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim1.new(0, 15) -- حواف ناعمة
-UICorner.Parent = MainFrame
-
--- العنوان
-local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "رادار لافتات البوص"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.Text = "GUI KING - SCANNER"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextScaled = true
 
--- زر التشغيل/الإطفاء (ON/OFF)
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Parent = MainFrame
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0) -- أحمر في البداية
-ToggleBtn.Text = "ESP: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-local BtnCorner = Instance.new("UICorner", ToggleBtn)
-BtnCorner.CornerRadius = UDim1.new(0, 8)
-
--- قائمة التمرير (لأزرار النقل)
-local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Parent = MainFrame
-ScrollFrame.Position = UDim2.new(0.1, 0, 0.4, 0)
-ScrollFrame.Size = UDim2.new(0.8, 0, 0.5, 0)
+ScrollFrame.Position = UDim2.new(0, 5, 0, 50)
+ScrollFrame.Size = UDim2.new(0, 340, 0, 340)
 ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.ScrollBarThickness = 2
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 10, 0)
 
-local Layout = Instance.new("UIListLayout", ScrollFrame)
-Layout.Padding = UDim.new(0, 5)
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 5)
 
--- متغيرات التحكم
-local espActive = false
-local currentESPs = {}
-
--- وظيفة إنشاء الرصد (ESP)
-function createESP(targetPart, bossName)
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "MissionESP"
-    billboard.Parent = targetPart
-    billboard.AlwaysOnTop = true -- لتعمل مثل الـ X-Ray
-    billboard.Size = UDim2.new(0, 100, 0, 50)
-    billboard.ExtentsOffset = Vector3.new(0, 5, 0)
-
-    local label = Instance.new("TextLabel", billboard)
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.TextColor3 = Color3.fromRGB(0, 255, 0) -- أخضر
-    label.TextStrokeTransparency = 0
-    label.TextSize = 14
-    label.Font = Enum.Font.GothamBold
-
-    -- تحديث المسافة
-    task.spawn(function()
-        while billboard.Parent do
-            local playerPos = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if playerPos then
-                local dist = math.floor((targetPart.Position - playerPos.Position).Magnitude)
-                label.Text = bossName .. "\n[" .. dist .. "m]"
-            end
-            task.wait(0.1)
-        end
-    end)
-    return billboard
-end
-
--- وظيفة تحديث الأزرار والرصد
-function refreshMissions()
-    -- مسح الأزرار القديمة
-    for _, child in pairs(ScrollFrame:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
-    end
-
-    -- البحث في المسار الذي حددته
-    local missionsFolder = workspace:FindFirstChild("bossdropmission") and workspace.bossdropmission:FindFirstChild("missions")
-    
-    if missionsFolder then
-        for _, bossFolder in pairs(missionsFolder:GetChildren()) do
-            local bossName = bossFolder.Name
-            -- محاولة الوصول لـ Part المطلوب
-            local success, targetPart = pcall(function() 
-                return bossFolder.missiongiver.Part 
-            end)
-
-            if success and targetPart then
-                -- إنشاء زر الانتقال في القائمة
-                local row = Instance.new("Frame")
-                row.Size = UDim2.new(1, 0, 0, 30)
-                row.BackgroundTransparency = 0.8
-                row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                row.Parent = ScrollFrame
-                Instance.new("UICorner", row)
-
-                local nameTxt = Instance.new("TextLabel", row)
-                nameTxt.Text = bossName
-                nameTxt.Size = UDim2.new(0.7, 0, 1, 0)
-                nameTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                nameTxt.BackgroundTransparency = 1
-                nameTxt.TextSize = 10
-
-                local tpBtn = Instance.new("TextButton", row)
-                tpBtn.Text = "نقل"
-                tpBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
-                tpBtn.Position = UDim2.new(0.7, 0, 0.1, 0)
-                tpBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-                tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Instance.new("UICorner", tpBtn)
-
-                tpBtn.MouseButton1Click:Connect(function()
-                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = targetPart.CFrame * CFrame.new(0, 5, 0)
-                end)
-            end
-        end
-    end
-end
-
--- تفعيل الزر الرئيسي
+-- وظيفة زر ON/OFF
 ToggleBtn.MouseButton1Click:Connect(function()
-    espActive = not espActive
-    if espActive then
-        ToggleBtn.Text = "ESP: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-        
-        -- تشغيل الـ ESP لكل لافتة
-        local missionsFolder = workspace.bossdropmission.missions
-        for _, bossFolder in pairs(missionsFolder:GetChildren()) do
-            pcall(function()
-                local part = bossFolder.missiongiver.Part
-                local esp = createESP(part, bossFolder.Name)
-                table.insert(currentESPs, esp)
-            end)
-        end
-    else
-        ToggleBtn.Text = "ESP: OFF"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-        for _, v in pairs(currentESPs) do if v then v:Destroy() end end
-        currentESPs = {}
-    end
+    MainFrame.Visible = not MainFrame.Visible
+    ToggleBtn.Text = MainFrame.Visible and "GUI KING: ON" or "GUI KING: OFF"
 end)
 
--- تشغيل البحث لأول مرة
-refreshMissions()
+-- دالة لإنشاء عناصر القائمة
+local function createItem(obj)
+    local itemFrame = Instance.new("Frame")
+    local nameLabel = Instance.new("TextLabel")
+    local xrayBtn = Instance.new("TextButton")
+    local copyBtn = Instance.new("TextButton")
+
+    itemFrame.Size = UDim2.new(1, -10, 0, 60)
+    itemFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    itemFrame.Parent = ScrollFrame
+
+    nameLabel.Parent = itemFrame
+    nameLabel.Size = UDim2.new(1, 0, 0, 25)
+    nameLabel.Text = "Obj: " .. obj.Parent.Name
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    xrayBtn.Parent = itemFrame
+    xrayBtn.Position = UDim2.new(0, 5, 0, 30)
+    xrayBtn.Size = UDim2.new(0, 80, 0, 25)
+    xrayBtn.Text = "X-Ray"
+    xrayBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+
+    copyBtn.Parent = itemFrame
+    copyBtn.Position = UDim2.new(0, 95, 0, 30)
+    copyBtn.Size = UDim2.new(0, 80, 0, 25)
+    copyBtn.Text = "Copy Info"
+    copyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+
+    -- ميزة X-Ray (Highlight)
+    local highlighted = false
+    xrayBtn.MouseButton1Click:Connect(function()
+        local target = obj.Adornee or obj.Parent
+        if not highlighted then
+            local hl = Instance.new("Highlight")
+            hl.Name = "KingXray"
+            hl.FillColor = Color3.new(0, 0, 0) -- هالة سوداء
+            hl.OutlineColor = Color3.new(1, 1, 1)
+            hl.Parent = target
+            highlighted = true
+            xrayBtn.Text = "Un-XRay"
+        else
+            if target:FindFirstChild("KingXray") then
+                target.KingXray:Destroy()
+            end
+            highlighted = false
+            xrayBtn.Text = "X-Ray"
+        end
+    end)
+
+    -- ميزة النسخ
+    copyBtn.MouseButton1Click:Connect(function()
+        local target = obj.Adornee or obj.Parent
+        local info = "Name: " .. target.Name .. 
+                     "\nPath: " .. target:GetFullName() .. 
+                     "\nPos: " .. tostring(target.Position)
+        setclipboard(info)
+        copyBtn.Text = "Copied!"
+        wait(1)
+        copyBtn.Text = "Copy Info"
+    end)
+end
+
+-- عمل مسح (Scan) لكل الـ BillboardGui في الماب
+for _, v in pairs(game.Workspace:GetDescendants()) do
+    if v:IsA("BillboardGui") then
+        createItem(v)
+    end
+end
+
+print("GUI KING Loaded Successfully!")
