@@ -1,4 +1,4 @@
--- Workspace.SpawnedGems Ultra ESP & Teleport Tracker
+-- Workspace.SpawnedGems Group ESP & Smart Teleport Tracker
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -25,7 +25,7 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- شريط العنوان (قابل للتحريك بالأصبع)
+-- شريط العنوان (قابل للتحريك)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -104,45 +104,55 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 3. دالة جلب الموقع الفعلي لأي نوع من الكريستالات (حتى لو كانت داخل Cluster)
-local function getGemPosition(gem)
+-- 3. دالة استخراج جميع أجزاء الكريستالة (سواء كانت قطعة واحدة أو عدة أجزاء داخل Cluster)
+local function getAllParts(gem)
+    local parts = {}
     if gem:IsA("BasePart") then
-        return gem.Position
-    elseif gem:IsA("Model") then
-        if gem.PrimaryPart then
-            return gem.PrimaryPart.Position
-        else
-            return gem:GetPivot().Position
-        end
+        table.insert(parts, gem)
     else
-        -- إذا كان العنصر مجرد Folder يحتوي على قطع
-        local part = gem:FindFirstChildWhichIsA("BasePart", true)
-        if part then
-            return part.Position
+        for _, descendant in pairs(gem:GetDescendants()) do
+            if descendant:IsA("BasePart") then
+                table.insert(parts, descendant)
+            end
         end
     end
-    return nil
+    return parts
 end
 
--- 4. نظام الانتقال السريع (Teleport)
-local function teleportToGem(gem)
+-- 4. نظام الانتقال إلى أقرب كريستالة في المجموعة (Smart TP)
+local function teleportToNearest(gem)
     local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local targetPos = getGemPosition(gem)
-        if targetPos then
-            -- الانتقال بجانب الكريستالة بمسافة أمان
-            char.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+    if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
+
+    local parts = getAllParts(gem)
+    if #parts == 0 then return end
+
+    local myPos = char.HumanoidRootPart.Position
+    local nearestPart = nil
+    local minDistance = math.huge
+
+    for _, part in pairs(parts) do
+        local dist = (myPos - part.Position).Magnitude
+        if dist < minDistance then
+            minDistance = dist
+            nearestPart = part
         end
+    end
+
+    if nearestPart then
+        char.HumanoidRootPart.CFrame = CFrame.new(nearestPart.Position + Vector3.new(0, 3, 0))
     end
 end
 
--- 5. نظام الـ ESP الخفيف بدعم الحزم والمركبات
+-- 5. نظام ESP متطور لكل أجزاء الكريستالة المشتركة
 local activeESPs = {}
 
 local function removeESP(gem)
     if activeESPs[gem] then
-        if activeESPs[gem].Highlight then activeESPs[gem].Highlight:Destroy() end
-        if activeESPs[gem].Billboard then activeESPs[gem].Billboard:Destroy() end
+        for _, item in pairs(activeESPs[gem].Items) do
+            if item.Highlight then item.Highlight:Destroy() end
+            if item.Billboard then item.Billboard:Destroy() end
+        end
         if activeESPs[gem].Connection then activeESPs[gem].Connection:Disconnect() end
         activeESPs[gem] = nil
     end
@@ -154,45 +164,58 @@ local function createESP(gem)
         return false
     end
 
-    local pos = getGemPosition(gem)
-    if not pos then return false end
+    local parts = getAllParts(gem)
+    if #parts == 0 then return false end
 
-    -- إضاءة الجوهرة خلف الجدران
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = gem
-    highlight.FillColor = Color3.fromRGB(0, 255, 150)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.4
-    highlight.Parent = gem
+    local espItems = {}
 
-    -- نص المسافة فوق الجوهرة
-    local billboard = Instance.new("BillboardGui")
-    billboard.Adornee = gem:IsA("BasePart") and gem or (gem:FindFirstChildWhichIsA("BasePart", true) or gem)
-    billboard.Size = UDim2.new(0, 120, 0, 30)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = gem
+    for _, part in pairs(parts) do
+        -- إضاءة كل جزء
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = part
+        highlight.FillColor = Color3.fromRGB(0, 255, 150)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.4
+        highlight.Parent = part
 
-    local distanceText = Instance.new("TextLabel")
-    distanceText.Size = UDim2.new(1, 0, 1, 0)
-    distanceText.BackgroundTransparency = 1
-    distanceText.TextColor3 = Color3.fromRGB(0, 255, 150)
-    distanceText.TextStrokeTransparency = 0
-    distanceText.TextSize = 13
-    distanceText.Font = Enum.Font.GothamBold
-    distanceText.Text = gem.Name .. " [0m]"
-    distanceText.Parent = billboard
+        -- نص المسافة فوق كل جزء
+        local billboard = Instance.new("BillboardGui")
+        billboard.Adornee = part
+        billboard.Size = UDim2.new(0, 100, 0, 25)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = part
 
-    -- تحديث خفيف للمسافة تقليلاً للاق
+        local distanceText = Instance.new("TextLabel")
+        distanceText.Size = UDim2.new(1, 0, 1, 0)
+        distanceText.BackgroundTransparency = 1
+        distanceText.TextColor3 = Color3.fromRGB(0, 255, 150)
+        distanceText.TextStrokeTransparency = 0
+        distanceText.TextSize = 12
+        distanceText.Font = Enum.Font.GothamBold
+        distanceText.Text = gem.Name .. " [0m]"
+        distanceText.Parent = billboard
+
+        table.insert(espItems, {
+            Part = part,
+            Highlight = highlight,
+            Billboard = billboard,
+            TextLabel = distanceText
+        })
+    end
+
+    -- تحديث المسافات بخفة لتفادي اللاق
     local lastUpdate = 0
     local connection = RunService.Heartbeat:Connect(function()
-        if tick() - lastUpdate > 0.1 then -- التحديث كل 0.1 ثانية فقط بدلاً من كل Frame
+        if tick() - lastUpdate > 0.1 then
             lastUpdate = tick()
             if gem and gem.Parent and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local currentPos = getGemPosition(gem)
-                if currentPos then
-                    local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - currentPos).Magnitude)
-                    distanceText.Text = gem.Name .. " [" .. tostring(dist) .. "m]"
+                local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+                for _, item in pairs(espItems) do
+                    if item.Part and item.Part.Parent then
+                        local dist = math.floor((myPos - item.Part.Position).Magnitude)
+                        item.TextLabel.Text = gem.Name .. " [" .. tostring(dist) .. "m]"
+                    end
                 end
             else
                 removeESP(gem)
@@ -201,14 +224,13 @@ local function createESP(gem)
     end)
 
     activeESPs[gem] = {
-        Highlight = highlight,
-        Billboard = billboard,
+        Items = espItems,
         Connection = connection
     }
     return true
 end
 
--- 6. تحديث وعرض قائمة الكريستالات
+-- 6. تحديث قائمة العرض بالواجهة
 local function updateGemsList()
     for _, child in pairs(ScrollFrame:GetChildren()) do
         if child:IsA("Frame") then
@@ -230,11 +252,12 @@ local function updateGemsList()
         ItemCorner.CornerRadius = UDim.new(0, 6)
         ItemCorner.Parent = ItemFrame
 
+        local partsCount = #getAllParts(gem)
         local GemName = Instance.new("TextLabel")
         GemName.Size = UDim2.new(1, -115, 1, 0)
         GemName.Position = UDim2.new(0, 10, 0, 0)
         GemName.BackgroundTransparency = 1
-        GemName.Text = gem.Name
+        GemName.Text = gem.Name .. " (" .. tostring(partsCount) .. ")"
         GemName.TextColor3 = Color3.fromRGB(220, 220, 220)
         GemName.TextSize = 12
         GemName.Font = Enum.Font.Gotham
@@ -257,7 +280,7 @@ local function updateGemsList()
         TpCorner.Parent = TpBtn
 
         TpBtn.MouseButton1Click:Connect(function()
-            teleportToGem(gem)
+            teleportToNearest(gem)
         end)
 
         -- زر الـ ESP
@@ -296,5 +319,5 @@ end
 
 RefreshBtn.MouseButton1Click:Connect(updateGemsList)
 
--- أول فحص تلقائي
+-- أول فحص تلقائي عند تشغيل السكريبت
 updateGemsList()
