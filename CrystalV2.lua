@@ -1,4 +1,4 @@
--- Workspace.SpawnedGems Group ESP & Smart Teleport Tracker (Updated with Gem Valuation)
+-- Workspace.SpawnedGems Group ESP & Smart Teleport Tracker (Advanced Value Search)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -15,8 +15,8 @@ ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 340, 0, 370)
-MainFrame.Position = UDim2.new(0.5, -170, 0.5, -185) -- منتصف الشاشة
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- واجهة سوداء
+MainFrame.Position = UDim2.new(0.5, -170, 0.5, -185)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
@@ -25,7 +25,7 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- شريط العنوان (قابل للتحريك بالأصبع/الماوس)
+-- شريط العنوان
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 42)
 TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -77,7 +77,7 @@ local RefreshCorner = Instance.new("UICorner")
 RefreshCorner.CornerRadius = UDim.new(0, 6)
 RefreshCorner.Parent = RefreshBtn
 
--- قائمة التمرير (Scroll Frame)
+-- قائمة التمرير
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, -20, 1, -58)
 ScrollFrame.Position = UDim2.new(0, 10, 0, 48)
@@ -93,7 +93,7 @@ UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Parent = ScrollFrame
 
--- 2. تحريك الواجهة بالسحب من العنوان
+-- 2. تحريك الواجهة بالسحب
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -119,34 +119,37 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 3. دالة جلب قيمة السعر (GemInfo.Value)
+-- 3. دالة بحث مرنة ومتقدمة لجلب السعر (Value)
 local function getGemValue(gem)
-    local gemInfo = gem:FindFirstChild("GemInfo", true)
-    if gemInfo then
-        local val = gemInfo:FindFirstChild("Value")
-        if val then
-            return tonumber(val.Value) or 0
+    -- البحث عن أية قيمة باسم Value أو Price أو GemValue في كل أطفال المودل
+    for _, obj in pairs(gem:GetDescendants()) do
+        if (obj.Name == "Value" or obj.Name == "Price" or obj.Name == "GemValue") then
+            if obj:IsA("ValueBase") then
+                return tonumber(obj.Value) or 0
+            elseif obj:IsA("TextLabel") or obj:IsA("StringValue") then
+                local num = string.match(obj.Text or obj.Value, "%d+")
+                if num then return tonumber(num) end
+            end
         end
     end
     return 0
 end
 
--- 4. دالة استخراج جميع أجزاء الكريستالة
+-- 4. دالة استخراج أجزاء الكريستالة
 local function getAllParts(gem)
     local parts = {}
     if gem:IsA("BasePart") then
         table.insert(parts, gem)
-    else
-        for _, descendant in pairs(gem:GetDescendants()) do
-            if descendant:IsA("BasePart") then
-                table.insert(parts, descendant)
-            end
+    end
+    for _, descendant in pairs(gem:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            table.insert(parts, descendant)
         end
     end
     return parts
 end
 
--- 5. نظام الانتقال السريع إلى أقرب قطعة (TP)
+-- 5. الانتقال للكريستالة
 local function teleportToNearest(gem)
     local char = LocalPlayer.Character
     if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
@@ -155,7 +158,7 @@ local function teleportToNearest(gem)
     if #parts == 0 then return end
 
     local myPos = char.HumanoidRootPart.Position
-    local nearestPart = nil
+    local nearestPart = parts[1]
     local minDistance = math.huge
 
     for _, part in pairs(parts) do
@@ -171,7 +174,7 @@ local function teleportToNearest(gem)
     end
 end
 
--- 6. نظام ESP ومطابقة السعر $
+-- 6. نظام ESP
 local activeESPs = {}
 
 local function removeESP(gem)
@@ -198,7 +201,6 @@ local function createESP(gem)
     local espItems = {}
 
     for _, part in pairs(parts) do
-        -- إضاءة
         local highlight = Instance.new("Highlight")
         highlight.Adornee = part
         highlight.FillColor = Color3.fromRGB(0, 255, 150)
@@ -206,7 +208,6 @@ local function createESP(gem)
         highlight.FillTransparency = 0.4
         highlight.Parent = part
 
-        -- نص المسافة والسعر تحته
         local billboard = Instance.new("BillboardGui")
         billboard.Adornee = part
         billboard.Size = UDim2.new(0, 120, 0, 38)
@@ -229,7 +230,7 @@ local function createESP(gem)
         priceText.Size = UDim2.new(1, 0, 0, 16)
         priceText.Position = UDim2.new(0, 0, 0, 18)
         priceText.BackgroundTransparency = 1
-        priceText.TextColor3 = Color3.fromRGB(255, 215, 0) -- لون ذهبي للسعر
+        priceText.TextColor3 = Color3.fromRGB(255, 215, 0)
         priceText.TextStrokeTransparency = 0
         priceText.TextSize = 11
         priceText.Font = Enum.Font.GothamBold
@@ -269,7 +270,7 @@ local function createESP(gem)
     return true
 end
 
--- 7. تحديث قائمة العرض وتصنيفها من الأعلى سعراً
+-- 7. تحديث القائمة
 local function updateGemsList()
     for _, child in pairs(ScrollFrame:GetChildren()) do
         if child:IsA("Frame") then
@@ -282,13 +283,16 @@ local function updateGemsList()
 
     local gemsTable = {}
     for _, gem in pairs(spawnedGems:GetChildren()) do
-        table.insert(gemsTable, {
-            Object = gem,
-            Value = getGemValue(gem)
-        })
+        -- تأكيد وجود أجزاء قبل إضافتها للقائمة
+        if #getAllParts(gem) > 0 then
+            table.insert(gemsTable, {
+                Object = gem,
+                Value = getGemValue(gem)
+            })
+        end
     end
 
-    -- ترتيب القائمة من الأعلى سعراً للأقل
+    -- فرز حسب الأعلى سعراً
     table.sort(gemsTable, function(a, b)
         return a.Value > b.Value
     end)
@@ -308,7 +312,6 @@ local function updateGemsList()
         ItemCorner.CornerRadius = UDim.new(0, 6)
         ItemCorner.Parent = ItemFrame
 
-        -- اسم الجوهرة وتحتها سعرها بالدولار
         local GemName = Instance.new("TextLabel")
         GemName.Size = UDim2.new(1, -125, 0, 20)
         GemName.Position = UDim2.new(0, 10, 0, 2)
@@ -332,7 +335,6 @@ local function updateGemsList()
         GemPriceLabel.TextXAlignment = Enum.TextXAlignment.Left
         GemPriceLabel.Parent = ItemFrame
 
-        -- 1) زر Teleport
         local TpBtn = Instance.new("TextButton")
         TpBtn.Size = UDim2.new(0, 45, 0, 26)
         TpBtn.Position = UDim2.new(1, -105, 0.5, -13)
@@ -351,7 +353,6 @@ local function updateGemsList()
             teleportToNearest(gem)
         end)
 
-        -- 2) زر ESP
         local EspBtn = Instance.new("TextButton")
         EspBtn.Size = UDim2.new(0, 50, 0, 26)
         EspBtn.Position = UDim2.new(1, -55, 0.5, -13)
@@ -385,7 +386,7 @@ local function updateGemsList()
     end
 end
 
--- زر الانتقال التلقائي لأعلى كريستالة سعراً
+-- زر الانتقال لأعلى سعر
 TpTopBtn.MouseButton1Click:Connect(function()
     local spawnedGems = Workspace:FindFirstChild("SpawnedGems")
     if not spawnedGems then return end
@@ -408,5 +409,5 @@ end)
 
 RefreshBtn.MouseButton1Click:Connect(updateGemsList)
 
--- تشغيل القائمة
+-- البدء
 updateGemsList()
