@@ -7,15 +7,15 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. إنشاء الواجهة الشفافة
+-- 1. إنشاء الواجهة
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GemsTrackerGUI"
 ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -180) -- منتصف الشاشة
+MainFrame.Size = UDim2.new(0, 330, 0, 360)
+MainFrame.Position = UDim2.new(0.5, -165, 0.5, -180) -- منتصف الشاشة
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- واجهة سوداء
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -25,7 +25,7 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- شريط العنوان (قابل للتحريك)
+-- شريط العنوان (قابل للتحريك بالأصبع/الماوس)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -37,7 +37,7 @@ TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -70, 1, 0)
+TitleLabel.Size = UDim2.new(1, -75, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Gems Scanner (Drag)"
@@ -104,7 +104,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 3. دالة استخراج جميع أجزاء الكريستالة (سواء كانت قطعة واحدة أو عدة أجزاء داخل Cluster)
+-- 3. دالة استخراج جميع أجزاء الكريستالة
 local function getAllParts(gem)
     local parts = {}
     if gem:IsA("BasePart") then
@@ -119,7 +119,7 @@ local function getAllParts(gem)
     return parts
 end
 
--- 4. نظام الانتقال إلى أقرب كريستالة في المجموعة (Smart TP)
+-- 4. نظام الانتقال السريع إلى أقرب قطعة (TP)
 local function teleportToNearest(gem)
     local char = LocalPlayer.Character
     if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
@@ -144,7 +144,7 @@ local function teleportToNearest(gem)
     end
 end
 
--- 5. نظام ESP متطور لكل أجزاء الكريستالة المشتركة
+-- 5. نظام ESP
 local activeESPs = {}
 
 local function removeESP(gem)
@@ -170,7 +170,7 @@ local function createESP(gem)
     local espItems = {}
 
     for _, part in pairs(parts) do
-        -- إضاءة كل جزء
+        -- إضاءة
         local highlight = Instance.new("Highlight")
         highlight.Adornee = part
         highlight.FillColor = Color3.fromRGB(0, 255, 150)
@@ -178,7 +178,7 @@ local function createESP(gem)
         highlight.FillTransparency = 0.4
         highlight.Parent = part
 
-        -- نص المسافة فوق كل جزء
+        -- نص المسافة
         local billboard = Instance.new("BillboardGui")
         billboard.Adornee = part
         billboard.Size = UDim2.new(0, 100, 0, 25)
@@ -204,7 +204,6 @@ local function createESP(gem)
         })
     end
 
-    -- تحديث المسافات بخفة لتفادي اللاق
     local lastUpdate = 0
     local connection = RunService.Heartbeat:Connect(function()
         if tick() - lastUpdate > 0.1 then
@@ -230,7 +229,7 @@ local function createESP(gem)
     return true
 end
 
--- 6. تحديث قائمة العرض بالواجهة
+-- 6. تحديث قائمة العرض بالأزرار المضبوطة
 local function updateGemsList()
     for _, child in pairs(ScrollFrame:GetChildren()) do
         if child:IsA("Frame") then
@@ -253,8 +252,10 @@ local function updateGemsList()
         ItemCorner.Parent = ItemFrame
 
         local partsCount = #getAllParts(gem)
+
+        -- اسم الجوهرة
         local GemName = Instance.new("TextLabel")
-        GemName.Size = UDim2.new(1, -115, 1, 0)
+        GemName.Size = UDim2.new(1, -125, 1, 0)
         GemName.Position = UDim2.new(0, 10, 0, 0)
         GemName.BackgroundTransparency = 1
         GemName.Text = gem.Name .. " (" .. tostring(partsCount) .. ")"
@@ -264,10 +265,10 @@ local function updateGemsList()
         GemName.TextXAlignment = Enum.TextXAlignment.Left
         GemName.Parent = ItemFrame
 
-        -- زر الانتقال Teleport
+        -- 1) زر Teleport (موجود على يسار زر ESP)
         local TpBtn = Instance.new("TextButton")
         TpBtn.Size = UDim2.new(0, 45, 0, 26)
-        TpBtn.Position = UDim2.new(1, -105, 0.5, -13)
+        TpBtn.Position = UDim2.new(1, -105, 0.5, -13) -- مسافة محددة يمين الإطار ليكون يسار ESP
         TpBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
         TpBtn.Text = "TP"
         TpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -283,7 +284,7 @@ local function updateGemsList()
             teleportToNearest(gem)
         end)
 
-        -- زر الـ ESP
+        -- 2) زر ESP (في أقصى اليمين)
         local EspBtn = Instance.new("TextButton")
         EspBtn.Size = UDim2.new(0, 50, 0, 26)
         EspBtn.Position = UDim2.new(1, -55, 0.5, -13)
@@ -319,5 +320,5 @@ end
 
 RefreshBtn.MouseButton1Click:Connect(updateGemsList)
 
--- أول فحص تلقائي عند تشغيل السكريبت
+-- تشغيل القائمة
 updateGemsList()
