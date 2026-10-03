@@ -1,4 +1,4 @@
--- Workspace.SpawnedGems Group ESP & Smart Teleport Tracker (Advanced Value Search)
+-- Workspace.SpawnedGems Group ESP & Smart Teleport Tracker (Exact Path Fix)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -93,7 +93,7 @@ UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Parent = ScrollFrame
 
--- 2. تحريك الواجهة بالسحب
+-- 2. تحريك الواجهة للسحب
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -119,23 +119,48 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 3. دالة بحث مرنة ومتقدمة لجلب السعر (Value)
+-- 3. دالة استخراج السعر بمسار مطبق بدقة على UIStroke
 local function getGemValue(gem)
-    -- البحث عن أية قيمة باسم Value أو Price أو GemValue في كل أطفال المودل
-    for _, obj in pairs(gem:GetDescendants()) do
-        if (obj.Name == "Value" or obj.Name == "Price" or obj.Name == "GemValue") then
-            if obj:IsA("ValueBase") then
-                return tonumber(obj.Value) or 0
-            elseif obj:IsA("TextLabel") or obj:IsA("StringValue") then
-                local num = string.match(obj.Text or obj.Value, "%d+")
-                if num then return tonumber(num) end
+    for _, desc in pairs(gem:GetDescendants()) do
+        if desc.Name == "GemInfo" then
+            local valObj = desc:FindFirstChild("Value")
+            if valObj then
+                -- إذا كان UIStroke موجود داخله
+                local stroke = valObj:FindFirstChild("UIStroke") or valObj:FindFirstChildOfClass("UIStroke")
+                if stroke and stroke:IsA("TextLabel") then
+                    local num = string.match(stroke.Text, "[%d%,%.]+")
+                    if num then
+                        num = string.gsub(num, ",", "")
+                        return tonumber(num) or 0
+                    end
+                elseif valObj:IsA("TextLabel") then
+                    local num = string.match(valObj.Text, "[%d%,%.]+")
+                    if num then
+                        num = string.gsub(num, ",", "")
+                        return tonumber(num) or 0
+                    end
+                elseif valObj:IsA("ValueBase") then
+                    return tonumber(valObj.Value) or 0
+                end
             end
         end
     end
+
+    -- في حال عدم تحصيل النتيجة من المسار الرئيسي، يتم البحث عن أي TextLabel/UIStroke باسم Value/Price
+    for _, desc in pairs(gem:GetDescendants()) do
+        if desc.Name == "UIStroke" and desc:IsA("TextLabel") then
+            local num = string.match(desc.Text, "[%d%,%.]+")
+            if num then
+                num = string.gsub(num, ",", "")
+                return tonumber(num) or 0
+            end
+        end
+    end
+
     return 0
 end
 
--- 4. دالة استخراج أجزاء الكريستالة
+-- 4. استخراج كافة أجزاء الكريستالة
 local function getAllParts(gem)
     local parts = {}
     if gem:IsA("BasePart") then
@@ -270,7 +295,7 @@ local function createESP(gem)
     return true
 end
 
--- 7. تحديث القائمة
+-- 7. تحديث القائمة والتصنيف
 local function updateGemsList()
     for _, child in pairs(ScrollFrame:GetChildren()) do
         if child:IsA("Frame") then
@@ -283,7 +308,6 @@ local function updateGemsList()
 
     local gemsTable = {}
     for _, gem in pairs(spawnedGems:GetChildren()) do
-        -- تأكيد وجود أجزاء قبل إضافتها للقائمة
         if #getAllParts(gem) > 0 then
             table.insert(gemsTable, {
                 Object = gem,
@@ -292,7 +316,7 @@ local function updateGemsList()
         end
     end
 
-    -- فرز حسب الأعلى سعراً
+    -- ترتيب القائمة من الأعلى سعراً للأقل
     table.sort(gemsTable, function(a, b)
         return a.Value > b.Value
     end)
